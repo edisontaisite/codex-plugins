@@ -9,7 +9,6 @@
   "license": "MIT",
   "keywords": [
     "porter",
-    "handoff",
     "clipboard",
     "pasteboard",
     "zip",
@@ -22,7 +21,7 @@
   "mcpServers": "./.mcp.json",
   "skills": "./skills/",
   "interface": {
-    "displayName": "交付",
+    "displayName": "Porter",
     "shortDescription": "把文件塞进剪贴板，Cmd+V 就能粘贴",
     "longDescription": "Codex 聊天里的文件链接不能直接拖到别的窗口。这个插件换一条路：把文件打成包、写进 macOS 剪贴板（写的是文件本体，不是路径文本），你在 Finder、微信、邮件、任何上传框里 Cmd+V 就能粘出文件。也可以只在 Finder 里把它们一次全选好，想拖就拖一下。",
     "developerName": "Edison",

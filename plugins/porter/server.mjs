@@ -14,7 +14,6 @@ import { createInterface } from 'node:readline';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const PBCOPY = join(HERE, 'pbcopy-files.js');
-const DESKTOP = join(homedir(), 'Desktop');
 // zip 默认落在这里而不是桌面：交付包是一次性的中转物，
 // 留在桌面就得用户自己删。放暂存区 + 每次运行清理旧的，桌面保持干净。
 const STAGE_DIR = join(tmpdir(), 'codex-porter');

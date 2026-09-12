@@ -1,58 +1,50 @@
-# porter
+# Porter — 设计背景
 
-Codex 桌面版（`/Applications/ChatGPT.app`，bundle id `com.openai.codex`）**是 Chromium 内嵌应用**，
-不是原生 AppKit。证据在 `Codex Framework.framework/Versions/152.0.7977.83/`：
-`Helpers/` 下有 `Codex (Renderer).app`、`Codex (GPU).app`、`Codex (Service).app`、
-`browser_crashpad_handler`（Chromium 多进程标准布局），`Resources/chrome_100_percent.pak` 660K，
-版本号 `152.0.7977.83` 就是 Chrome 的版本体系。
+面向用户的说明见[仓库根 README](../../README.md)。这里记录几个「为什么是这样做的」。
 
-> **别用 `otool -L` 判这个 app 的渲染引擎。** 主二进制 `Contents/MacOS/ChatGPT` 只链 `libSystem`，
-> 那是启动壳——本文档最初据此判成「原生 AppKit」，是错的。真相在 Framework 目录里。
+## 为什么不去修拖拽
 
-不管底层是什么，**Codex 插件都够不着对话渲染层**：扩展面只有
-`.codex-plugin/plugin.json` + `.mcp.json`(MCP server) + `skills/`，跑在 UI 进程之外。
-所以「让聊天里的文件链接可拖」第三方做不到。
+**Codex 插件够不着对话渲染层。** 扩展面只有 `.codex-plugin/plugin.json` +
+`.mcp.json`(MCP server) + `skills/`，跑在 UI 进程之外。
+所以「让聊天里的文件链接可拖」第三方做不到，那需要宿主自己实现。
 
-> 未验的口子：既然是 Chromium，`visualize` 那类能往对话里塞沙箱 iframe 的 skill，
-> 理论上可以借 Chromium 的 `DownloadURL` 拖拽机制拖出真文件。但沙箱多半禁了 downloads，
-> **没试过**，别当结论用。
+Porter 的取向是：**不去修拖拽，而是让拖拽没必要发生。**
 
-这个插件绕开了这个问题：**不去修拖拽，而是让拖拽没必要发生。**
-macOS 剪贴板可以承载真文件（`public.file-url` + `NSFilenamesPboardType`），
-所以把文件写进剪贴板，在目标窗口 `Cmd+V` 就能粘出文件本体。
+## 关于宿主的渲染引擎
 
-## 工具
+Codex 桌面版（`/Applications/ChatGPT.app`，bundle id `com.openai.codex`）
+**是 Chromium 内嵌应用**，不是原生 AppKit。证据在
+`Codex Framework.framework/Versions/<ver>/`：`Helpers/` 下有 `Codex (Renderer).app`、
+`Codex (GPU).app`、`Codex (Service).app`、`browser_crashpad_handler`（Chromium
+多进程标准布局），`Resources/` 下有 `chrome_*.pak`、`v8_context_snapshot.arm64.bin`。
 
-- `porter_zip` —— 打成 zip + 进剪贴板（默认）。zip 落在暂存区 `$TMPDIR/codex-porter`，
-  24 小时后自动清理，不脏桌面；要留存传 `dest_dir`。
-- `porter_clipboard` —— 原样进剪贴板，不打包
-- `porter_reveal` —— 只在 Finder 里全选，不碰剪贴板
+> **别用 `otool -L` 判这个 app 的渲染引擎。** 主二进制 `Contents/MacOS/ChatGPT`
+> 只链 `libSystem`，那是启动壳 —— 本文档最初据此判成「原生 AppKit」，是错的。
 
-## 安装
+这不改变上面的结论（插件扩展面与引擎无关），但留下一个**未验证**的口子：
+既然是 Chromium，能往对话里塞沙箱 iframe 的 skill 理论上可以借
+`DownloadURL` 拖拽机制拖出真文件。沙箱多半禁了 downloads，没试过，别当结论用。
 
-```sh
-git clone https://github.com/edisontaisite/codex-plugins.git
-cd codex-plugins
-codex plugin marketplace add "$PWD"
-codex plugin add porter@codex-plugins
-```
+## 剪贴板要铺两个通道
 
-改完源码要 `codex plugin remove porter@codex-plugins` 再 `add` 才生效——
-实际跑的是 `~/.codex/plugins/cache/` 下的副本。
+macOS 上「文件剪贴板」不是一种格式：
 
-## 已知边界：网页目标别粘贴
+- `public.file-url` —— 每个文件一个 `NSPasteboardItem`，Finder 和现代 App 读这个
+- `NSFilenamesPboardType` —— 老一些的 App 读这个
 
-粘进**原生 app**（微信、邮件、Finder）是完整的多个文件；
-粘进**网页**（ChatGPT 输入框等）只到 1 个，文件名还会变成 UUID ——
-浏览器的 paste 通道拿不全文件列表和文件名。
+只铺前者，一些 App 只能粘到第一个文件；只铺后者，Finder 侧行为不稳。两个都铺。
 
-网页有两条路：
+### JXA 的坑
 
-- **`porter_zip`（推荐）** —— 一个 zip 就是一个文件，正好不触发 paste 的数量限制，直接粘。
-  唯一风险是目标站点可能拒收 `.zip`。
-- **`porter_reveal` + 拖拽** —— 在 Finder 里全选后拖进去，数量和名字都对。
-  网页的**拖拽**通道是好的，坏的只有 paste。
+`NSPasteboard.writeObjects` 传 NSURL 数组的写法，**在 osascript 脚本文件里会静默
+只落一个 item**（同样的代码用 `-e` 内联却是对的）。所以
+[`pbcopy-files.js`](pbcopy-files.js) 显式构造 `NSPasteboardItem`，
+并且**写完回读校验条目数**，对不上就抛错。
 
-## 只有 macOS
+交付工具静默丢文件比直接失败糟得多 —— 用户不会发现，对方也不会说。
 
-用的是 `NSPasteboard` / `ditto` / `open -R`，Windows、Linux 上不工作。
+## zip 落在暂存区
+
+`porter_zip` 的产物是一次性中转物，落在 `$TMPDIR/codex-porter`，24 小时后自动清理。
+早期版本落桌面，结果是用户桌面很快堆满没人删的交付包。
+要留存传 `dest_dir`，那时不清理。

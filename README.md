@@ -1,59 +1,129 @@
-# codex-plugins
+<h1 align="center">Porter · 文件摆渡</h1>
 
-给 Codex 桌面版（macOS）用的插件。目前一个：**porter**。
+<p align="center">
+  <strong>Move your work, not your folders.</strong><br>
+  <sub>别再找目录，直接把文件带走。</sub>
+</p>
 
-## porter —— 把聊天里的文件真正交到手上
+<p align="center">
+  <code>Codex → Porter → ⌘V</code>
+</p>
 
-Codex 聊天里的文件链接**拖不出去**，想发给别人只能自己进文件夹手动拖。
-porter 换一条路：**把文件打成包写进 macOS 剪贴板**，你在任何窗口 `Cmd+V` 就能粘出文件本体——
-微信、邮件、Finder、浏览器上传框都收。
+---
 
-```
+Codex 已经把文件生成好了，但你还得打开 Finder、找到目录，再拖到微信、邮件或浏览器。
+
+Porter 把这段路收成一句话：
+
+```text
 你：把 outputs 里那几个报告发给我
-Codex：（调 porter_zip）已打包并放进剪贴板，切到目标窗口 Cmd+V 即可。
+Codex：已打包并放进剪贴板，切到目标窗口 Cmd+V 即可。
 ```
 
-### 工具
+⌘V。文件就过去了。
 
-| 工具 | 作用 |
-|---|---|
-| `porter_zip` | **默认**。打成一个 zip 写进剪贴板。单文件是最大公约数，粘到哪儿都收 |
-| `porter_clipboard` | 原样多文件进剪贴板。**只适用原生 app**——网页 paste 通道只收得到 1 个 |
-| `porter_reveal` | 只在 Finder 里一次全选，不碰剪贴板。留给「我要自己拖」和拒收 zip 的站点 |
+## Demo
 
-### 为什么默认打包
+<p align="center">
+  <img src="assets/demo.gif" width="900" alt="Porter demo">
+</p>
 
-实测（同一份剪贴板）：粘进**原生 app** 是完整 6 个文件；粘进**网页**只到 1 个，
-文件名还变成 UUID。这是浏览器 paste 通道的限制，不是剪贴板没写对。
+## Install
 
-而**单个 zip 正好不触发这个限制**——一个文件就是一个文件。所以打包既解决了网页，
-也让原生 app 那边少漏文件。
-
-zip 落在 `$TMPDIR/codex-porter`，24 小时自动清理，不脏桌面；要留存传 `dest_dir`。
-
-## 安装
-
-```sh
+```bash
 git clone https://github.com/edisontaisite/codex-plugins.git
 cd codex-plugins
+
 codex plugin marketplace add "$PWD"
 codex plugin add porter@codex-plugins
 ```
 
-改完源码要 `remove` 再 `add` 才生效——实际跑的是 `~/.codex/plugins/cache/` 下的副本。
+重启 Codex 后生效。
 
-## 要求
+## Usage
 
-- **macOS only**。用的是 `NSPasteboard` / `ditto` / `open -R`
-- Node ≥ 16（插件自带启动脚本，会优先找 Codex 内置的 Node）
+不用记工具名，直接说人话：
+
+```text
+把这几个文件给我
+打个包我要发出去
+在 Finder 里帮我选好，我自己拖
+```
+
+Porter 提供三个出口：
+
+| Tool | What it does | Best for |
+|---|---|---|
+| `porter_zip` | 打包成 ZIP 并写入剪贴板 | ⭐ 默认，网页也收 |
+| `porter_clipboard` | 原始文件直接写入剪贴板 | macOS 原生 App |
+| `porter_reveal` | Finder 中打开并选中文件 | 网页要多个独立文件时 |
+
+### 拿不准就用 `porter_zip`
+
+单个文件是最大公约数，粘到哪儿都收，用户也少漏文件。
+
+需要往网页里放**多个独立文件**时才换 `porter_reveal` —— 网页的粘贴通道
+只收得到 1 个，拖拽通道才是完整的。原因见 [Limitations](#limitations)。
+
+## How it works
+
+Porter 不接管 Codex 的界面，也不试图让聊天里的文件链接变得可拖。
+它换一条路：把 Codex 已经能访问的文件，转换成其他 App 能直接接收的形式。
+
+```text
+Codex ──▶ Porter ──▶ NSPasteboard ──▶ ⌘V ──▶ Finder / Mail / 微信 …
+              │
+              └────▶ open -R ──▶ Finder 已选中 ──▶ 拖进网页
+```
+
+写剪贴板时同时铺两个通道：`public.file-url`（每个文件一个 `NSPasteboardItem`，
+Finder 和现代 App 读这个）和 `NSFilenamesPboardType`（老一些的 App 读这个）。
+写完回读校验条目数，对不上直接报错 —— 交付工具静默丢文件比失败更糟。
+
+`porter_zip` 的包落在 `$TMPDIR/codex-porter`，24 小时后自动清理，
+不碰桌面和项目目录。需要留存时传 `dest_dir`。
+
+## Limitations
+
+**网页的粘贴通道只收 1 个文件。** 实测（ChatGPT 输入框）：同一份多文件剪贴板，
+粘进原生 App 是完整的 6 个文件、文件名原样；粘进该网页只到 1 个，文件名变成 UUID。
+这是浏览器侧的限制，不是剪贴板没写对 —— `public.file-url` 和 `NSFilenamesPboardType`
+两个通道都验过是 6 条。
+
+`porter_zip` 产出单个 ZIP，正好不触发这个限制（ChatGPT 输入框实测可用）。
+网页确实需要多个独立文件时，走 `porter_reveal` + 拖拽 —— `DataTransfer`
+通道的文件数和文件名是完整的。
+
+> 各站点的上传实现不同，未逐一验证。遇到拒收 `.zip` 的站点，用 `porter_reveal`。
+
+**会覆盖系统剪贴板。** `porter_zip` 和 `porter_clipboard` 都会。这是预期行为。
+
+**仅支持 macOS。** 实现依赖 `NSPasteboard`、`ditto`、`open -R`。
+
+## Requirements
+
+- macOS
+- Codex Desktop
+- Node.js ≥ 16（优先使用 Codex 自带的 Node）
 - 无第三方依赖
 
-## 已知边界
+## Update
 
-- **网页要多个独立文件只能拖**，不能粘。用 `porter_reveal` 在 Finder 全选后拖进去
-- **会覆盖系统剪贴板**。一次调用做一件事
-- 同名 zip 不覆盖，自动加 `-2` 后缀
+Codex 运行的是插件缓存中的副本，改完源码要重装：
 
-## 许可
+```bash
+codex plugin remove porter@codex-plugins
+codex plugin add porter@codex-plugins
+```
 
-[MIT](LICENSE) © Edison
+## Roadmap
+
+探索方向，非承诺：
+
+- [ ] 自动识别目标是原生 App 还是网页
+- [ ] 更直接的 Drag & Drop
+- [ ] Windows / Linux
+
+## License
+
+MIT © Edison

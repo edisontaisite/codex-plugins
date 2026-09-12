@@ -1,0 +1,10 @@
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+node_modules/
+*.log
+
+# 插件运行时产物（暂存区的 zip 不在仓库里，这里只是保险）
+*.zip

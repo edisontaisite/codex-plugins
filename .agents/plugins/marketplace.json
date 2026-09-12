@@ -1,0 +1,19 @@
+{
+  "name": "codex-plugins",
+  "interface": {
+    "displayName": "Codex Plugins by Edison"
+  },
+  "plugins": [
+    {
+      "name": "porter",
+      "source": {
+        "source": "local",
+        "path": "./plugins/porter"
+      },
+      "policy": {
+        "installation": "AVAILABLE"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

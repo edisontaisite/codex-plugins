@@ -1,0 +1,50 @@
+{
+  "name": "porter",
+  "version": "0.1.0",
+  "description": "把 Codex 答复里提到的文件直接交到手上：打包 / 塞进 macOS 剪贴板（真文件，Cmd+V 即可粘贴）/ 在 Finder 里全选。省掉「进文件夹手动拖」这一步。",
+  "author": {
+    "name": "Edison",
+    "url": "https://github.com/edisontaisite"
+  },
+  "license": "MIT",
+  "keywords": [
+    "porter",
+    "handoff",
+    "clipboard",
+    "pasteboard",
+    "zip",
+    "finder",
+    "macos",
+    "codex-plugin",
+    "剪贴板",
+    "交付"
+  ],
+  "mcpServers": "./.mcp.json",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "交付",
+    "shortDescription": "把文件塞进剪贴板，Cmd+V 就能粘贴",
+    "longDescription": "Codex 聊天里的文件链接不能直接拖到别的窗口。这个插件换一条路：把文件打成包、写进 macOS 剪贴板（写的是文件本体，不是路径文本），你在 Finder、微信、邮件、任何上传框里 Cmd+V 就能粘出文件。也可以只在 Finder 里把它们一次全选好，想拖就拖一下。",
+    "developerName": "Edison",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "defaultPrompt": [
+      "把这几个文件给我",
+      "打个包我要发出去"
+    ]
+  },
+  "homepage": "https://github.com/edisontaisite/codex-plugins",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/edisontaisite/codex-plugins.git"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "os": [
+    "darwin"
+  ]
+}
